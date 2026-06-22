@@ -1,0 +1,11 @@
+{
+  "name": "karaoki",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./server.ps1",
+    "start": "powershell -NoProfile -ExecutionPolicy Bypass -File ./server.ps1",
+    "dev:node": "node server.mjs"
+  }
+}

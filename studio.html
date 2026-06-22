@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#11110f" />
+  <title>KaraOki Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body class="studio-page">
+  <div class="noise"></div>
+  <header class="topbar">
+    <a class="brand" href="./index.html" aria-label="KaraOki home">
+      <span class="brand-word">KARA<span>O</span>KI</span>
+      <svg class="brand-mic" viewBox="0 0 28 34" aria-hidden="true"><path d="M9 16V8a5 5 0 0 1 10 0v8a5 5 0 0 1-10 0Z"/><path d="M5 15v1a9 9 0 0 0 18 0v-1M14 25v6M9 31h10"/></svg>
+    </a>
+    <a class="back-home" href="./index.html">← Home</a>
+    <div class="live-pill"><i></i><span id="engineStatus">Audio idle</span></div>
+  </header>
+
+  <main>
+    <section class="player-section studio-player">
+      <div class="section-intro">
+        <div><h1>PICK A SONG</h1></div>
+        <p>Drop in an MP3, or pair an MP3 with its CDG lyrics file.</p>
+      </div>
+      <div class="drop-zone" id="dropZone">
+        <input id="fileInput" type="file" accept=".mp3,.cdg,audio/mpeg" multiple hidden>
+        <div class="drop-icon"><svg viewBox="0 0 32 32"><path d="M16 22V7M10 13l6-6 6 6M6 23v3h20v-3"/></svg></div>
+        <div><h3>Drop your karaoke files here</h3><p>MP3 audio · MP3 + CDG lyrics</p></div>
+        <button id="browseFiles">Browse files</button>
+      </div>
+
+      <div class="now-playing" id="nowPlaying">
+        <div class="album-art"><span>K</span><i></i></div>
+        <div class="track-info"><small>READY TO SING</small><strong id="trackName">No song loaded</strong><span id="trackMeta">Choose an MP3 or MP3 + CDG pair</span></div>
+        <button class="play-button" id="playButton" disabled aria-label="Play"><svg class="play-symbol" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7V5Z"/></svg><svg class="pause-symbol" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg></button>
+        <div class="timeline"><span id="currentTime">0:00</span><input type="range" id="seek" min="0" max="100" value="0" aria-label="Seek through song"><span id="duration">0:00</span></div>
+        <div class="player-actions">
+          <button class="lyrics-button" id="lyricsButton" disabled><svg viewBox="0 0 24 24"><path d="M5 5h14v11H9l-4 3V5Z"/><path d="M8 9h8M8 12h5"/></svg> Lyrics</button>
+        </div>
+      </div>
+      <audio id="songAudio" preload="metadata"></audio>
+    </section>
+
+    <section class="studio" id="studio">
+      <div class="studio-head">
+        <div><h2>YOUR SOUND</h2></div>
+        <div class="performance-controls">
+          <div class="latency"><span>ESTIMATE</span><strong id="latencyValue">—</strong><i id="latencyDot"></i></div>
+        </div>
+      </div>
+
+      <div class="studio-grid">
+        <section class="device-column" aria-labelledby="input-title">
+          <div class="column-title">
+            <span class="round-icon"><svg viewBox="0 0 24 24"><path d="M8 11V6a4 4 0 0 1 8 0v5a4 4 0 0 1-8 0Z"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v3M8 21h8"/></svg></span>
+            <div><small>INPUT</small><h3 id="input-title">Microphones</h3></div>
+          </div>
+          <div class="device-list" id="inputList"></div>
+          <button class="add-device" id="addInput"><span>+</span> Add microphone <b>0 / 2</b></button>
+          <div class="feedback-control">
+            <label class="master-toggle">Feedback protection <input type="checkbox" id="feedbackProtection"><span></span></label>
+            <p>Reduces speaker feedback, but may alter your voice and add latency.</p>
+          </div>
+        </section>
+
+        <section class="effects-column" aria-labelledby="effects-title">
+          <div class="effects-heading">
+            <div><small>VOCAL CHAIN</small><h3 id="effects-title">Effects</h3></div>
+            <label class="master-toggle">ALL <input type="checkbox" id="allEffects"><span></span></label>
+          </div>
+          <div class="effect-list">
+            <article class="effect-card" data-effect="clean">
+              <button class="effect-toggle" aria-label="Toggle clarity" aria-pressed="false"></button>
+              <div class="effect-icon"><svg viewBox="0 0 24 24"><path d="M4 17c3-8 5 0 8-8s5 0 8-4"/></svg></div>
+              <div class="effect-copy"><h4>Clarity</h4><p>Cuts low rumble for a cleaner voice</p></div>
+              <span class="effect-state">OFF</span>
+            </article>
+            <article class="effect-card active" data-effect="reverb">
+              <button class="effect-toggle" aria-label="Toggle space" aria-pressed="true"></button>
+              <div class="effect-icon"><svg viewBox="0 0 24 24"><path d="M5 16a7 7 0 1 1 14 0M8 16a4 4 0 1 1 8 0M12 16v4"/></svg></div>
+              <div class="effect-copy"><h4>Space</h4><p>Adds a light room reverb</p></div>
+              <span class="effect-state">ON</span>
+            </article>
+            <article class="effect-card" data-effect="delay">
+              <button class="effect-toggle" aria-label="Toggle echo" aria-pressed="false"></button>
+              <div class="effect-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></div>
+              <div class="effect-copy"><h4>Echo</h4><p>Adds a quick karaoke-style repeat</p></div>
+              <span class="effect-state">OFF</span>
+            </article>
+          </div>
+        </section>
+
+        <section class="device-column output-column" aria-labelledby="output-title">
+          <div class="column-title">
+            <span class="round-icon coral"><svg viewBox="0 0 24 24"><path d="M5 9v6h4l5 4V5L9 9H5Z"/><path d="M17 9c1 1 1 5 0 6M20 7c3 3 3 7 0 10"/></svg></span>
+            <div><small>OUTPUT</small><h3 id="output-title">Speakers</h3></div>
+          </div>
+          <div class="level-control">
+            <div><small>OUTPUT VOLUME</small><strong>Speaker level</strong></div>
+            <label class="level-slider">
+              <input id="outputGain" type="range" min="0" max="100" value="85" aria-label="Output volume">
+              <output id="outputGainValue">85%</output>
+            </label>
+          </div>
+          <div class="system-output">
+            <span><i></i> System speaker</span>
+            <button id="muteOutput" aria-pressed="false" aria-keyshortcuts="M" title="Mute (M)"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4ZM16 9c2 2 2 4 0 6M19 6c5 4 5 8 0 12"/></svg><b>Mute</b></button>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="troubleshoot" id="troubleshoot">
+      <div class="troubleshoot-head">
+        <div><small>QUICK CHECK</small><h2>Troubleshooting</h2></div>
+        <button id="refreshPermissions">Check again</button>
+      </div>
+      <div class="permission-grid">
+        <article><i></i><div><strong>Microphone access</strong><span id="microphoneStatus">Not requested</span></div></article>
+      </div>
+    </section>
+  </main>
+
+  <footer><span>KARAOKI © 2026</span><a href="./index.html">Back home ↑</a></footer>
+
+  <div class="lyrics-stage" id="lyricsStage" aria-hidden="true">
+    <button id="closeLyrics" aria-label="Close lyrics">×</button>
+    <div class="stage-brand">KARA<span>O</span>KI</div>
+    <canvas id="cdgCanvas" width="300" height="216"></canvas>
+    <div class="empty-lyrics"><span>♪</span><h2>Lyrics are ready</h2><p>Press play when you are.</p></div>
+    <div class="stage-controls"><strong id="stageTrack">No song</strong><button id="stagePlay">PLAY</button></div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
