@@ -25,23 +25,33 @@
     <section class="player-section studio-player">
       <div class="section-intro">
         <div><h1>PICK A SONG</h1></div>
-        <p>Drop in an MP3, or pair an MP3 with its CDG lyrics file.</p>
+        <p>Drop an MP3 or add a YouTube link.</p>
       </div>
       <div class="drop-zone" id="dropZone">
         <input id="fileInput" type="file" accept=".mp3,.cdg,audio/mpeg" multiple hidden>
         <div class="drop-icon"><svg viewBox="0 0 32 32"><path d="M16 22V7M10 13l6-6 6 6M6 23v3h20v-3"/></svg></div>
-        <div><h3>Drop your karaoke files here</h3><p>MP3 audio · MP3 + CDG lyrics</p></div>
-        <button id="browseFiles">Browse files</button>
+        <div><h3>Drop an MP3 or YouTube link here</h3><p>Choose a local song or paste a video link</p></div>
+        <div class="source-actions">
+          <button id="browseFiles">Browse MP3</button>
+          <span>OR</span>
+          <form id="youtubeForm" class="youtube-form">
+            <input id="youtubeUrl" type="url" placeholder="Paste YouTube link" aria-label="YouTube link" autocomplete="off">
+            <button type="submit">Load video</button>
+          </form>
+        </div>
       </div>
 
-      <div class="now-playing" id="nowPlaying">
+      <div class="now-playing" id="nowPlaying" hidden>
         <div class="album-art"><span>K</span><i></i></div>
-        <div class="track-info"><small>READY TO SING</small><strong id="trackName">No song loaded</strong><span id="trackMeta">Choose an MP3 or MP3 + CDG pair</span></div>
+        <div class="track-info"><small>READY TO SING</small><strong id="trackName">Song</strong><span id="trackMeta">MP3 audio</span></div>
         <button class="play-button" id="playButton" disabled aria-label="Play"><svg class="play-symbol" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7V5Z"/></svg><svg class="pause-symbol" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg></button>
         <div class="timeline"><span id="currentTime">0:00</span><input type="range" id="seek" min="0" max="100" value="0" aria-label="Seek through song"><span id="duration">0:00</span></div>
         <div class="player-actions">
           <button class="lyrics-button" id="lyricsButton" disabled><svg viewBox="0 0 24 24"><path d="M5 5h14v11H9l-4 3V5Z"/><path d="M8 9h8M8 12h5"/></svg> Lyrics</button>
         </div>
+      </div>
+      <div class="youtube-player" id="youtubePlayer" hidden>
+        <iframe id="youtubeFrame" title="YouTube karaoke player" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
       </div>
       <audio id="songAudio" preload="metadata"></audio>
     </section>
@@ -50,6 +60,7 @@
       <div class="studio-head">
         <div><h2>YOUR SOUND</h2></div>
         <div class="performance-controls">
+          <span class="keyboard-hint"><kbd>M</kbd> Mute mic + speaker</span>
           <div class="latency"><span>ESTIMATE</span><strong id="latencyValue">—</strong><i id="latencyDot"></i></div>
         </div>
       </div>
@@ -61,10 +72,10 @@
             <div><small>INPUT</small><h3 id="input-title">Microphones</h3></div>
           </div>
           <div class="device-list" id="inputList"></div>
-          <button class="add-device" id="addInput"><span>+</span> Add microphone <b>0 / 2</b></button>
-          <div class="feedback-control">
-            <label class="master-toggle">Feedback protection <input type="checkbox" id="feedbackProtection"><span></span></label>
-            <p>Reduces speaker feedback, but may alter your voice and add latency.</p>
+          <button class="add-device" id="addInput"><span>+</span> Add microphone <b>0 / 1</b></button>
+          <div class="system-output input-output">
+            <span><i></i> Microphone</span>
+            <button id="muteInput" aria-pressed="false" aria-keyshortcuts="M"><b>Mute mic</b></button>
           </div>
         </section>
 

@@ -14,7 +14,7 @@ const state = {
   cdgRenderedPackets: 0,
   songSource: null,
   microphoneReady: false,
-  feedbackProtection: false,
+  inputMuted: false,
   outputMuted: false,
 };
 
@@ -40,7 +40,7 @@ function makeImpulse(context, seconds = 1.4, decay = 2.7) {
 }
 
 function createAudioGraph() {
-  const context = new AudioContext({ latencyHint: "interactive" });
+  const context = new AudioContext({ latencyHint: 0 });
   const sourceBus = context.createGain();
   sourceBus.gain.value = 1;
   const highpass = context.createBiquadFilter();
@@ -138,16 +138,17 @@ function deviceOptions(type, selected = "default") {
 
 function updateDeviceCounters() {
   const ic = inputList.children.length;
-  $("#addInput b").textContent = `${ic} / 2`;
-  $("#addInput").disabled = ic >= 2;
+  $("#addInput b").textContent = `${ic} / 1`;
+  $("#addInput").disabled = ic >= 1;
 }
 
 function microphoneConstraints(deviceId) {
   return {
     deviceId: deviceId && deviceId !== "default" ? { exact: deviceId } : undefined,
-    echoCancellation: state.feedbackProtection,
-    noiseSuppression: state.feedbackProtection,
-    autoGainControl: state.feedbackProtection,
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+    channelCount: 1,
     latency: 0,
   };
 }
@@ -155,15 +156,15 @@ function microphoneConstraints(deviceId) {
 function buildDeviceRow(type) {
   const row = document.createElement("div");
   row.className = "device-row";
-  row.innerHTML = `<select aria-label="Select ${type} device">${deviceOptions(type)}</select><button aria-label="Remove ${type} device">×</button>${type === "input" ? `<div class="level">${"<i></i>".repeat(12)}</div><label class="mic-volume"><span>MIC VOLUME</span><input type="range" min="0" max="150" value="100" aria-label="Microphone volume"><output>100%</output></label>` : ""}`;
+  row.innerHTML = `<select aria-label="Select ${type} device">${deviceOptions(type)}</select><button class="remove-device" aria-label="Remove ${type} device">×</button>${type === "input" ? `<div class="level">${"<i></i>".repeat(12)}</div><label class="mic-volume"><span>MIC VOLUME</span><input type="range" min="0" max="150" value="100" aria-label="Microphone volume"><output>100%</output></label>` : ""}`;
   row.querySelector("select").addEventListener("change", () => connectInput(row));
-  row.querySelector("button").addEventListener("click", () => removeDeviceRow(row));
+  row.querySelector(".remove-device").addEventListener("click", () => removeDeviceRow(row));
   const volume = row.querySelector(".mic-volume input");
   volume?.addEventListener("input", () => {
     const value = Number(volume.value);
     row.querySelector(".mic-volume output").value = `${value}%`;
     const entry = state.inputStreams.get(row);
-    if (entry?.gain) entry.gain.gain.setTargetAtTime(value / 100, state.context.currentTime, .01);
+    if (entry?.gain) entry.gain.gain.setTargetAtTime(state.inputMuted ? 0 : value / 100, state.context.currentTime, .005);
   });
   return row;
 }
@@ -173,7 +174,7 @@ async function addInputRow() {
     const ready = await startAudio();
     if (!ready) return;
   }
-  if (inputList.children.length >= 2) return;
+  if (inputList.children.length >= 1) return;
   const row = buildDeviceRow("input");
   inputList.append(row);
   updateDeviceCounters();
@@ -190,9 +191,10 @@ async function connectInput(row) {
     const source = state.context.createMediaStreamSource(stream);
     const analyser = state.context.createAnalyser();
     const gain = state.context.createGain();
-    gain.gain.value = Number(row.querySelector(".mic-volume input").value) / 100;
+    gain.gain.value = state.inputMuted ? 0 : Number(row.querySelector(".mic-volume input").value) / 100;
     analyser.fftSize = 64;
-    source.connect(analyser).connect(gain).connect(state.sourceBus);
+    source.connect(analyser);
+    source.connect(gain).connect(state.sourceBus);
     const entry = { stream, source, analyser, gain, raf: null };
     state.inputStreams.set(row, entry);
     animateLevel(row, entry);
@@ -237,22 +239,6 @@ $("#allEffects").addEventListener("change", event => {
   updateEffectGraph();
 });
 
-$("#feedbackProtection").addEventListener("change", async event => {
-  const enabled = event.target.checked;
-  try {
-    await Promise.all([...state.inputStreams.values()].map(entry => entry.stream.getAudioTracks()[0]?.applyConstraints({
-      echoCancellation: enabled,
-      noiseSuppression: enabled,
-      autoGainControl: enabled,
-    })));
-    state.feedbackProtection = enabled;
-    showToast(enabled ? "Feedback protection enabled." : "Feedback protection disabled.");
-  } catch {
-    event.target.checked = state.feedbackProtection;
-    showToast("This browser could not update feedback protection.");
-  }
-});
-
 function formatTime(value) {
   if (!Number.isFinite(value)) return "0:00";
   return `${Math.floor(value / 60)}:${Math.floor(value % 60).toString().padStart(2, "0")}`;
@@ -262,14 +248,17 @@ function handleFiles(fileList) {
   const files = [...fileList];
   const mp3 = files.find(f => f.name.toLowerCase().endsWith(".mp3") || f.type === "audio/mpeg");
   const cdg = files.find(f => f.name.toLowerCase().endsWith(".cdg"));
-  if (!mp3 && !cdg) { showToast("Choose an MP3 or an MP3 + CDG pair."); return; }
+  if (!mp3 && !cdg) { showToast("Choose an MP3 or paste a YouTube link."); return; }
   if (mp3) {
+    $("#youtubeFrame").src = "";
+    $("#youtubePlayer").hidden = true;
+    $("#nowPlaying").hidden = false;
     if (songAudio.src.startsWith("blob:")) URL.revokeObjectURL(songAudio.src);
     songAudio.src = URL.createObjectURL(mp3);
     const title = mp3.name.replace(/\.mp3$/i, "");
     $("#trackName").textContent = title;
     $("#stageTrack").textContent = title;
-    $("#trackMeta").textContent = cdg ? "MP3 + CDG lyrics" : "MP3 audio";
+    $("#trackMeta").textContent = cdg ? "MP3 with synced lyrics" : "MP3 audio";
     $("#playButton").disabled = false;
   }
   if (cdg) {
@@ -284,6 +273,41 @@ function handleFiles(fileList) {
     $("#lyricsButton").disabled = true;
   }
 }
+
+function youtubeVideoId(value) {
+  try {
+    const url = new URL(value.trim());
+    const host = url.hostname.replace(/^www\./, "");
+    let id = "";
+    if (host === "youtu.be") id = url.pathname.split("/").filter(Boolean)[0] || "";
+    if (["youtube.com", "m.youtube.com", "music.youtube.com"].includes(host)) {
+      if (url.pathname === "/watch") id = url.searchParams.get("v") || "";
+      else if (/^\/(embed|shorts)\//.test(url.pathname)) id = url.pathname.split("/")[2] || "";
+    }
+    return /^[\w-]{11}$/.test(id) ? id : null;
+  } catch { return null; }
+}
+
+function loadYoutube(value) {
+  const id = youtubeVideoId(value);
+  if (!id) { showToast("Enter a valid YouTube video link."); return false; }
+  songAudio.pause();
+  $("#nowPlaying").hidden = true;
+  $("#youtubeFrame").src = `https://www.youtube-nocookie.com/embed/${id}?rel=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;
+  $("#youtubePlayer").hidden = false;
+  showToast("YouTube video loaded.");
+  return true;
+}
+
+function youtubeCommand(func, args = []) {
+  const frame = $("#youtubeFrame");
+  frame.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "https://www.youtube-nocookie.com");
+}
+
+$("#youtubeFrame").addEventListener("load", () => {
+  youtubeCommand("setVolume", [Number($("#outputGain").value)]);
+  youtubeCommand(state.outputMuted ? "mute" : "unMute");
+});
 
 const palette = Array.from({ length: 16 }, () => [0, 0, 0, 255]);
 const pixels = new Uint8Array(300 * 216);
@@ -347,9 +371,18 @@ $("#stagePlay").addEventListener("click", togglePlay);
 const dropZone = $("#dropZone");
 $("#browseFiles").addEventListener("click", () => $("#fileInput").click());
 $("#fileInput").addEventListener("change", e => handleFiles(e.target.files));
+$("#youtubeForm").addEventListener("submit", e => {
+  e.preventDefault();
+  if (loadYoutube($("#youtubeUrl").value)) $("#youtubeUrl").value = "";
+});
 dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("dragging"); });
 dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragging"));
-dropZone.addEventListener("drop", e => { e.preventDefault(); dropZone.classList.remove("dragging"); handleFiles(e.dataTransfer.files); });
+dropZone.addEventListener("drop", e => {
+  e.preventDefault();
+  dropZone.classList.remove("dragging");
+  if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+  else loadYoutube(e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain"));
+});
 $("#lyricsButton").addEventListener("click", () => {
   $("#lyricsStage").classList.add("open"); $("#lyricsStage").setAttribute("aria-hidden", "false");
   $("#cdgCanvas").style.display = state.cdg ? "block" : "none";
@@ -362,7 +395,9 @@ document.addEventListener("keydown", e => {
   if (editing) return;
   if (e.key.toLowerCase() === "m" && !e.repeat) {
     e.preventDefault();
-    $("#muteOutput").click();
+    const shouldMute = !(state.inputMuted && state.outputMuted);
+    if (state.inputMuted !== shouldMute) $("#muteInput").click();
+    if (state.outputMuted !== shouldMute) $("#muteOutput").click();
   }
   if (e.code === "Space") {
     e.preventDefault();
@@ -383,6 +418,7 @@ function setGainSlider(input, output, nodeName) {
       const gain = nodeName === "outputBus" && state.outputMuted ? 0 : value / 100;
       state.nodes[nodeName].gain.setTargetAtTime(gain, state.context.currentTime, .01);
     } else if (nodeName === "outputBus") songAudio.volume = value / 100;
+    if (nodeName === "outputBus") youtubeCommand("setVolume", [value]);
   };
   input.addEventListener("input", update);
   update();
@@ -390,9 +426,22 @@ function setGainSlider(input, output, nodeName) {
 
 setGainSlider($("#outputGain"), $("#outputGainValue"), "outputBus");
 
+$("#muteInput").addEventListener("click", () => {
+  state.inputMuted = !state.inputMuted;
+  const button = $("#muteInput");
+  button.classList.toggle("muted", state.inputMuted);
+  button.setAttribute("aria-pressed", state.inputMuted);
+  $("b", button).textContent = state.inputMuted ? "Unmute mic" : "Mute mic";
+  state.inputStreams.forEach((entry, row) => {
+    const value = Number(row.querySelector(".mic-volume input").value) / 100;
+    entry.gain.gain.setTargetAtTime(state.inputMuted ? 0 : value, state.context.currentTime, .005);
+  });
+});
+
 $("#muteOutput").addEventListener("click", () => {
   state.outputMuted = !state.outputMuted;
   songAudio.muted = state.outputMuted;
+  youtubeCommand(state.outputMuted ? "mute" : "unMute");
   const button = $("#muteOutput");
   button.classList.toggle("muted", state.outputMuted);
   button.setAttribute("aria-pressed", state.outputMuted);
